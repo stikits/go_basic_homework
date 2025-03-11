@@ -6,20 +6,33 @@ import (
 	"strings"
 )
 
-const USD = "USD"
-const EUR = "EUR"
-const RUB = "RUB"
+var currencyRates = map[string]map[string]float64{
+	"USD": {"EUR": 0.95, "RUB": 91.07},
+	"EUR": {"USD": 1.05, "RUB": 95.61},
+	"RUB": {"USD": 0.011, "EUR": 0.01},
+}
 
+func getStringFromMapKeys[T any](data map[string]T) string {
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		keys = append(keys, key)
+	}
+
+	result := strings.Join(keys, "|")
+	return result
+}
 func getSourceCurrency() string {
 	var input string
-
+	currenciesString := getStringFromMapKeys(currencyRates)
 	for {
-		fmt.Print("Выберите исходную валюту USD|EUR|RUB: ")
+		inputMessage := "Выберите исходную валюту " + currenciesString + ":"
+		fmt.Print(inputMessage)
 		fmt.Scan(&input)
-		result := strings.ToUpper(input)
-		if result == USD || result == EUR || result == RUB {
-			return result
+		currency := strings.ToUpper(input)
+		if _, ok := currencyRates[currency]; ok {
+			return currency
 		}
+		printRed("Введено некорректное наименование исходной валюты, попробуйте еще раз")
 	}
 }
 
@@ -33,60 +46,39 @@ func getAmount() float64 {
 		if err == nil {
 			return result
 		}
+		printRed("Введено некорректное значение количества валюты, попробуйте еще раз")
 	}
 }
 
-func getTargetCurrency(firstTargetCurrency string, secondTargetCurrency string) string {
+func printRed(s string) {
+	fmt.Printf("\033[31m%s\033[0m\n\n", s)
+}
+
+func getTargetCurrency(sourceCurrency string) string {
 	var input string
-
+	currenciesString := getStringFromMapKeys(currencyRates[sourceCurrency])
 	for {
-		fmt.Printf("Выберите целевую валюту %s|%s: ", firstTargetCurrency, secondTargetCurrency)
+		inputMessage := "Выберите целевую валюту " + currenciesString + ":"
+		fmt.Print(inputMessage)
 		fmt.Scan(&input)
-		result := strings.ToUpper(input)
-		if result == firstTargetCurrency || result == secondTargetCurrency {
-			return result
+		currency := strings.ToUpper(input)
+		if _, ok := currencyRates[sourceCurrency][currency]; ok {
+			return currency
 		}
-	}
-}
-
-func getValidTargetCurrencies(sourceCurrency string) (string, string) {
-	switch {
-	case sourceCurrency == USD:
-		return EUR, RUB
-	case sourceCurrency == EUR:
-		return USD, RUB
-	default:
-		return USD, EUR
+		printRed("Введено некорректное наименование целевой валюты, попробуйте еще раз")
 	}
 }
 
 func main() {
 	sourceCurrency := getSourceCurrency()
 	amount := getAmount()
-	firstTargetCurrency, secondTargetCurrency := getValidTargetCurrencies(sourceCurrency)
-	targetCurrency := getTargetCurrency(firstTargetCurrency, secondTargetCurrency)
-	
-    result := calculate(amount, sourceCurrency, targetCurrency)
+	targetCurrency := getTargetCurrency(sourceCurrency)
+
+	result := calculate(amount, sourceCurrency, targetCurrency)
 	fmt.Printf("Вы получите %.2f %s\n", result, targetCurrency)
 }
 
 func calculate(amount float64, sourceCurrency string, targetCurrency string) float64 {
-	const fromUstToEur = 0.96
-	const fromUsdToRub = 88.45
-	const fromEurToRub = (1 / fromUstToEur) * fromUsdToRub
-
-	switch {
-	case sourceCurrency == USD && targetCurrency == EUR:
-		return amount * fromUstToEur
-	case sourceCurrency == USD && targetCurrency == RUB:
-		return amount * fromUsdToRub
-	case sourceCurrency == EUR && targetCurrency == USD:
-		return amount * (1 / fromUstToEur)
-	case sourceCurrency == EUR && targetCurrency == RUB:
-		return amount * fromEurToRub
-	case sourceCurrency == RUB && targetCurrency == EUR:
-		return amount * (1 / fromEurToRub)
-	default:
-		return amount * (1 / fromUsdToRub)
-	}
+	rate := currencyRates[sourceCurrency][targetCurrency]
+	return amount * rate
 }
