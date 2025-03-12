@@ -12,16 +12,39 @@ const AVG = "AVG"
 const SUM = "SUM"
 const MED = "MED"
 
+var (
+    colorYellow = "\033[33m"
+    colorReset = "\033[0m"
+)
+
+var operationsMap = map[string]func([]float64) float64{
+    "AVG": calculateAvg,
+    "SUM": calculateSum,
+    "MED": calculateMed,
+}
+
 func getOperation() string {
 	var input string
+    operationsString := getStringFromMapKeys(operationsMap)
+    inputMessage := "Выберите операцию " + operationsString + ": "
 	for {
-		fmt.Print("Выберите операцию AVG|SUM|MED: ")
+		fmt.Print(inputMessage)
 		fmt.Scan(&input)
 		result := strings.ToUpper(input)
-		if result == AVG || result == SUM || result == MED {
-			return result
+		if _, ok := operationsMap[result]; ok {
+            return result
 		}
 	}
+}
+
+func getStringFromMapKeys[T any](data map[string]T) string {
+	keys := make([]string, 0, len(data))
+	for key := range data {
+		keys = append(keys, key)
+	}
+
+	result := strings.Join(keys, "|")
+	return result
 }
 
 func getNumbers() []float64 {
@@ -47,7 +70,7 @@ func convertStringToFloatArray(str string) ([]float64, error) {
 		trimmedPart := strings.TrimSpace(part)
 		number, parseErr := strconv.ParseFloat(trimmedPart, 64)
 		if parseErr != nil {
-			err = fmt.Errorf("\033[33mНевозможно преобразовать в строку последовательность '%s', попробуйте еще раз.\033[0m", trimmedPart)
+			err = fmt.Errorf("%sНевозможно преобразовать в строку последовательность '%s', попробуйте еще раз.%s", colorYellow, trimmedPart, colorReset)
 			break
 		}
 		numbers = append(numbers, number)
@@ -56,14 +79,8 @@ func convertStringToFloatArray(str string) ([]float64, error) {
 }
 
 func calculate(operation string, numbers []float64) float64 {
-	switch operation {
-	case MED:
-		return calculateMed(numbers)
-	case AVG:
-		return calculateAvg(numbers)
-	default:
-		return calculateSum(numbers)
-	}
+	fn := operationsMap[operation]
+    return fn(numbers)
 }
 
 func calculateMed(numbers []float64) float64 {
